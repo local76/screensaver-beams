@@ -1,4 +1,6 @@
 /target
+/build
+/assets/*_split
 **/*.rs.bk
 *.scr
 *.exe
