@@ -1,4 +1,4 @@
-//! Consolidated beams screensaver effect module.
+﻿//! Consolidated beams screensaver effect module.
 
 mod types;
 mod physics;
@@ -9,7 +9,7 @@ use library::core::{LcgRng, TerminalCell};
 use std::time::Duration;
 use library::core::screensaver::Screensaver;
 
-use library::platform::native::sys_info::get_system_info;
+use library::toolkit::sys_info::get_system_info;
 
 
 pub struct Beams {
