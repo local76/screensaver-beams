@@ -7,10 +7,10 @@ autobins = false
 
 [[bin]]
 name = "beams"
-path = "src/screensaver_shim.rs"
+path = "src/main.rs"
 
 [dependencies]
-library = { git = "https://github.com/local76/library.git", branch = "main", features = ["screensaver-runtime"] }
+library = { git = "https://github.com/local76/library.git", branch = "main" }
 
 [build-dependencies]
 library = { git = "https://github.com/local76/library.git", branch = "main" }
@@ -22,6 +22,9 @@ lto = true
 codegen-units = 1
 strip = true
 panic = "abort"
+
+[patch."https://github.com/local76/library.git"]
+library = { path = "../library" }
 
 [package.metadata.deb]
 name = "scene-beams"
