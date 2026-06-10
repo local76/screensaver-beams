@@ -14,11 +14,11 @@ pub fn get_light_at(
     rows: usize,
     spotlights: &[Spotlight],
     current_angles: &[f32],
-    spot_cots: &[(f32, f32, f32, f32)],
+    spot_cots: &[(f32, f32, f32, f32, f32)],
     time_elapsed: f32,
 ) -> (f32, f32, f32, f32) {
     let y_origin = rows as f32;
-    let max_dist = y_origin * 1.6;
+    let inv_max_dist = 1.0 / (y_origin * 1.6).max(1e-6);
     let mut r = 0.0f32;
     let mut g = 0.0f32;
     let mut b = 0.0f32;
@@ -30,7 +30,7 @@ pub fn get_light_at(
         let dy = y_origin - cy;
 
         if dy > 0.0 {
-            let (a_min, a_max, cot_min, cot_max) = spot_cots[i];
+            let (a_min, a_max, cot_min, cot_max, inv_spread) = spot_cots[i];
             let mut in_beam = true;
             if a_min > 1e-4 && dx >= dy * cot_min {
                 in_beam = false;
@@ -45,11 +45,23 @@ pub fn get_light_at(
                 let current_angle = current_angles[i];
                 let mut da = angle - current_angle;
 
-                da = (da + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+                // Fast angle normalization (da is typically in [-TAU, TAU] range)
+                if da > std::f32::consts::PI {
+                    da -= std::f32::consts::TAU;
+                    if da > std::f32::consts::PI {
+                        da = (da + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+                    }
+                } else if da < -std::f32::consts::PI {
+                    da += std::f32::consts::TAU;
+                    if da < -std::f32::consts::PI {
+                        da = (da + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+                    }
+                }
 
-                if da.abs() < spot.spread {
-                    let angular_intensity = 1.0 - (da.abs() / spot.spread);
-                    let dist_intensity = (1.0 - dist / max_dist).max(0.0);
+                let abs_da = da.abs();
+                if abs_da < spot.spread {
+                    let angular_intensity = 1.0 - (abs_da * inv_spread);
+                    let dist_intensity = (1.0 - dist * inv_max_dist).max(0.0);
                     let wave = 0.88 + 0.12 * (dist * 0.28 - time_elapsed * 14.0).sin();
                     let intensity = angular_intensity * dist_intensity * wave;
 
@@ -70,14 +82,16 @@ pub fn draw_spotlight(
     rows: usize,
     spotlights: &[Spotlight],
     current_angles: &[f32],
-    spot_cots: &[(f32, f32, f32, f32)],
+    spot_cots: &[(f32, f32, f32, f32, f32)],
     time_elapsed: f32,
 ) {
     for y in 0..rows {
+        let y_f = y as f32;
+        let y_cols = y * cols;
         for x in 0..cols {
             let (r, g, b, _) = get_light_at(
                 x as f32,
-                y as f32,
+                y_f,
                 cols,
                 rows,
                 spotlights,
@@ -89,7 +103,7 @@ pub fn draw_spotlight(
             let bg_g = (g * 0.15) as u8;
             let bg_b = (b * 0.15) as u8;
 
-            grid[y * cols + x] = TerminalCell {
+            grid[y_cols + x] = TerminalCell {
                 ch: ' ',
                 fg: (0, 0, 0),
                 bg: (bg_r, bg_g, bg_b),
@@ -108,7 +122,7 @@ pub fn draw_star(
     time_elapsed: f32,
     spotlights: &[Spotlight],
     current_angles: &[f32],
-    spot_cots: &[(f32, f32, f32, f32)],
+    spot_cots: &[(f32, f32, f32, f32, f32)],
 ) {
     if twinkle_stars_opt == 1 {
         // Top candidates for lens flares (highly excited stars, max 4)
@@ -235,7 +249,7 @@ pub fn draw_dust(
     particles: &[DustParticle],
     spotlights: &[Spotlight],
     current_angles: &[f32],
-    spot_cots: &[(f32, f32, f32, f32)],
+    spot_cots: &[(f32, f32, f32, f32, f32)],
     time_elapsed: f32,
 ) {
     for p in particles {
@@ -298,19 +312,21 @@ pub fn draw_impl(
 
         let cot_min = if a_min > 1e-4 {
             let (sin, cos) = a_min.sin_cos();
-            cos / sin
+            cos / sin.max(1e-6)
         } else {
             0.0
         };
 
         let cot_max = if a_max < std::f32::consts::PI - 1e-4 {
             let (sin, cos) = a_max.sin_cos();
-            cos / sin
+            cos / sin.max(1e-6)
         } else {
             0.0
         };
 
-        spot_cots.push((a_min, a_max, cot_min, cot_max));
+        let inv_spread = 1.0 / spot.spread.max(1e-6);
+
+        spot_cots.push((a_min, a_max, cot_min, cot_max, inv_spread));
     }
 
     // 1. Volumetric background beams
