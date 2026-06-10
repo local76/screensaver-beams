@@ -53,6 +53,5 @@ assets = [
     { source = "assets/scene-beams.xml", dest = "/usr/share/xscreensaver/config/scene-beams.xml", mode = "644" }
 ]
 
-[target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { version = "0.52", features = ["Win32_System_Console", "Win32_Foundation"] }
+
 

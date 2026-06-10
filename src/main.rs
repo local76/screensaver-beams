@@ -3,10 +3,9 @@
     windows_subsystem = "windows"
 )]
 
-mod runner;
 mod beams;
 
 fn main() {
     let effect = beams::Beams::new();
-    runner::run_main(effect, "beams");
+    library::screensaver_runner::run_main(effect, "beams");
 }
