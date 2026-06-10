@@ -12,8 +12,6 @@ use library::core::screensaver::Screensaver;
 use library::platform::native::sys_info::get_system_info;
 use library::toolkit::sys_info::query_current_palette;
 
-use library::toolkit::rgb_controller::{RgbController, is_openrgb_enabled};
-use library::toolkit::rgb_protocol::RgbColor;
 
 pub struct Beams {
     pub(super) rng: LcgRng,
@@ -30,8 +28,6 @@ pub struct Beams {
     pub(super) mem_pressure: f32,
     pub(super) cpu_load: f32,
     pub(super) host_bias: f32,
-    pub(super) rgb: Option<RgbController>,
-    pub(super) rgb_timer: f32,
 }
 
 impl Default for Beams {
@@ -72,8 +68,6 @@ impl Beams {
             mem_pressure,
             cpu_load,
             host_bias,
-            rgb: if is_openrgb_enabled() { Some(RgbController::new()) } else { None },
-            rgb_timer: 0.0,
         }
     }
 }
@@ -170,48 +164,7 @@ impl Screensaver for Beams {
             spot.phase += spot.speed * delta;
         }
 
-        self.rgb_timer += delta;
-        if self.rgb_timer >= 0.05 {
-            self.rgb_timer = 0.0;
-            if let Some(ref r) = self.rgb {
-                let accent = query_current_palette().accent;
-                let mut spots = self.spotlights.clone();
-                if spots.len() >= 2 {
-                    spots[1].color_r = accent.0 as f32;
-                    spots[1].color_g = accent.1 as f32;
-                    spots[1].color_b = accent.2 as f32;
-                }
-
-                let get_mixed_color_at_pos = |x_ratio: f32| -> RgbColor {
-                    let mut r_sum = 0.0f32;
-                    let mut g_sum = 0.0f32;
-                    let mut b_sum = 0.0f32;
-                    for spot in &spots {
-                        let angle = spot.angle_center + spot.angle_amplitude * (spot.phase + spot.phase_offset).sin();
-                        let hit_x = spot.origin_x_ratio + angle.cos() / angle.sin().max(0.01);
-                        let dist = (x_ratio - hit_x).abs();
-                        let intensity = (-(dist * dist) / (2.0 * spot.spread * spot.spread)).exp();
-                        r_sum += spot.color_r * intensity;
-                        g_sum += spot.color_g * intensity;
-                        b_sum += spot.color_b * intensity;
-                    }
-                    RgbColor::new(
-                        r_sum.clamp(0.0, 255.0) as u8,
-                        g_sum.clamp(0.0, 255.0) as u8,
-                        b_sum.clamp(0.0, 255.0) as u8,
-                    )
-                };
-
-                r.set_device_color(5, get_mixed_color_at_pos(0.5));
-                r.set_device_color(6, get_mixed_color_at_pos(0.8));
-                r.set_device_color(12, get_mixed_color_at_pos(0.1));
-                let c_internal = get_mixed_color_at_pos(0.6);
-                r.set_device_color(0, c_internal);
-                r.set_device_color(1, c_internal);
-                r.set_device_color(2, c_internal);
-            }
-        }
-    }
+}
 
     fn draw(&self, grid: &mut [TerminalCell], cols: usize, rows: usize) {
         physics::draw_impl(
