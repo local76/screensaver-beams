@@ -34,9 +34,10 @@ depends = "libc6, xterm"
 section = "utils"
 priority = "optional"
 assets = [
-    ["target/release/beams", "usr/libexec/screensaver-shims/beams", "755"],
-    ["assets/scene-beams.desktop", "usr/share/applications/scene-beams.desktop", "644"],
-    ["assets/scene-beams.xml", "usr/share/xscreensaver/config/scene-beams.xml", "644"]
+    ["target/release/beams", "usr/libexec/local76/screensavers/beams", "755"],
+    ["assets/local76-beams.desktop", "usr/share/applications/local76-beams.desktop", "644"],
+    ["assets/local76-beams.xml", "usr/share/xscreensaver/config/local76-beams.xml", "644"],
+    ["assets/local76-beams.png", "usr/share/pixmaps/local76-beams.png", "644"]
 ]
 
 [package.metadata.generate-rpm]
@@ -48,9 +49,10 @@ summary = "beams - retro terminal screensaver effect"
 description = "Screensaver effect (beams) part of the screensavers collection."
 license = "MIT"
 assets = [
-    { source = "target/release/beams", dest = "/usr/libexec/screensaver-shims/beams", mode = "755" },
-    { source = "assets/scene-beams.desktop", dest = "/usr/share/applications/scene-beams.desktop", mode = "644" },
-    { source = "assets/scene-beams.xml", dest = "/usr/share/xscreensaver/config/scene-beams.xml", mode = "644" }
+    { source = "target/release/beams", dest = "/usr/libexec/local76/screensavers/beams", mode = "755" },
+    { source = "assets/local76-beams.desktop", dest = "/usr/share/applications/local76-beams.desktop", mode = "644" },
+    { source = "assets/local76-beams.xml", dest = "/usr/share/xscreensaver/config/local76-beams.xml", mode = "644" },
+    { source = "assets/local76-beams.png", dest = "/usr/share/pixmaps/local76-beams.png", mode = "644" }
 ]
 
 

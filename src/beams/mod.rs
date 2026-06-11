@@ -1,4 +1,4 @@
-﻿//! Consolidated beams screensaver effect module.
+//! Consolidated beams screensaver effect module.
 
 mod types;
 mod physics;
@@ -27,6 +27,10 @@ pub struct Beams {
     pub(super) mem_pressure: f32,
     pub(super) cpu_load: f32,
     pub(super) host_bias: f32,
+    pub(super) on_battery: bool,
+    pub(super) frame_time_ema: f32,
+    pub(super) quality_scale: f32,
+    pub(super) target_frame_time: f32,
 }
 
 impl Default for Beams {
@@ -43,7 +47,8 @@ impl Beams {
         let sys = get_system_info();
         let host_bias = sys.hostname.chars().map(|c| c as u32).sum::<u32>() as f32 / 1000.0 % 1.0;
         let mem_pressure = sys.mem_used_pct / 100.0;
-        let cpu_load = 0.4;
+        let cpu_load = (sys.cpu_usage_pct / 100.0).clamp(0.0, 1.0);
+        let on_battery = sys.power_status.contains("Battery");
 
         let all_spots = default_spotlights();
 
@@ -67,20 +72,47 @@ impl Beams {
             mem_pressure,
             cpu_load,
             host_bias,
+            on_battery,
+            frame_time_ema: 0.01666667,
+            quality_scale: 1.0,
+            target_frame_time: 0.01666667,
         }
     }
 }
 
 impl Screensaver for Beams {
     fn update(&mut self, dt: Duration, cols: usize, rows: usize) {
-        let delta = dt.as_secs_f32();
+        let dt_secs = dt.as_secs_f32();
+
+        // Auto-detect high refresh rates during the startup phase
+        if self.time_elapsed < 2.0 && dt_secs > 0.001 {
+            if dt_secs < self.target_frame_time - 0.001 {
+                self.target_frame_time = dt_secs;
+            }
+        }
+
+        // Exponential moving average for frame time (alpha = 0.1)
+        self.frame_time_ema = self.frame_time_ema * 0.9 + dt_secs.min(0.2) * 0.1;
+
+        let speed_mult = if self.on_battery { 0.65 } else { 1.0 };
+        let delta = dt_secs * speed_mult;
         self.time_elapsed += delta;
+
+        // Adjust quality_scale based on frame time performance vs target
+        if self.time_elapsed > 1.5 {
+            if self.frame_time_ema > self.target_frame_time * 1.15 {
+                self.quality_scale = (self.quality_scale - 0.15 * delta).max(0.20);
+            } else if self.frame_time_ema < self.target_frame_time * 1.05 {
+                self.quality_scale = (self.quality_scale + 0.04 * delta).min(1.0);
+            }
+        }
 
         self.sys_refresh_timer += delta;
         if self.sys_refresh_timer >= 1.0 {
             let sys = get_system_info();
             self.mem_pressure = sys.mem_used_pct / 100.0;
-            self.cpu_load = (self.mem_pressure * 0.6 + 0.3).min(1.0);
+            self.cpu_load = (sys.cpu_usage_pct / 100.0).clamp(0.0, 1.0);
+            self.on_battery = sys.power_status.contains("Battery");
             self.sys_refresh_timer = 0.0;
 
             let biased_load = self.cpu_load + (self.host_bias - 0.5) * 0.15;
@@ -91,24 +123,37 @@ impl Screensaver for Beams {
             }
         }
 
+        // Handle resize or dynamic target count adjustments based on quality scale & battery status
+        let max_stars = ((if self.twinkle_stars_opt == 1 { (cols * rows / 16).clamp(30, 200) } else { 0 }) as f32 * self.quality_scale * (if self.on_battery { 0.55 } else { 1.0 })) as usize;
+        let max_particles = (((cols * rows / 12).clamp(30, 150)) as f32 * self.quality_scale * (if self.on_battery { 0.55 } else { 1.0 })) as usize;
+
         if cols != self.last_cols || rows != self.last_rows {
             self.stars.clear();
             self.particles.clear();
+            self.last_cols = cols;
+            self.last_rows = rows;
+        }
 
-            let area = cols * rows;
-            let target_stars = if self.twinkle_stars_opt == 1 { (area / 16).clamp(30, 200) } else { 0 };
-            for i in 0..target_stars {
+        // Dynamically adjust star population to match target capacity
+        if self.stars.len() > max_stars {
+            self.stars.truncate(max_stars);
+        } else if self.stars.len() < max_stars && max_stars > 0 {
+            while self.stars.len() < max_stars {
                 self.stars.push(Star {
                     x: self.rng.next_f32(),
                     y: self.rng.next_f32(),
                     phase: self.rng.next_f32() * std::f32::consts::TAU,
-                    ch: if i % 8 == 0 { '\u{2726}' } else if i % 3 == 0 { '\u{2022}' } else { '.' },
+                    ch: if self.stars.len() % 8 == 0 { '\u{2726}' } else if self.stars.len() % 3 == 0 { '\u{2022}' } else { '.' },
                     excitation: 0.0,
                 });
             }
+        }
 
-            let target_particles = (area / 12).clamp(30, 150);
-            for _ in 0..target_particles {
+        // Dynamically adjust particle population to match target capacity
+        if self.particles.len() > max_particles {
+            self.particles.truncate(max_particles);
+        } else if self.particles.len() < max_particles && max_particles > 0 {
+            while self.particles.len() < max_particles {
                 self.particles.push(DustParticle {
                     x: self.rng.next_f32(),
                     y: self.rng.next_f32(),
@@ -116,9 +161,6 @@ impl Screensaver for Beams {
                     vy: -self.rng.next_range(0.05, 0.12),
                 });
             }
-
-            self.last_cols = cols;
-            self.last_rows = rows;
         }
 
         for star in &mut self.stars {

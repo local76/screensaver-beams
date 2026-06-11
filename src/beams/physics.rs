@@ -1,4 +1,4 @@
-﻿//! Core calculations and helper functions for the beams screensaver.
+//! Core calculations and helper functions for the beams screensaver.
 
 use library::core::TerminalCell;
 use library::toolkit::sys_info::query_current_palette;
@@ -15,7 +15,7 @@ pub fn get_light_at(
     spotlights: &[Spotlight],
     current_angles: &[f32],
     spot_cots: &[(f32, f32, f32, f32, f32)],
-    time_elapsed: f32,
+    _time_elapsed: f32,
 ) -> (f32, f32, f32, f32) {
     let y_origin = rows as f32;
     let inv_max_dist = 1.0 / (y_origin * 1.6).max(1e-6);
