@@ -62,8 +62,12 @@ pub fn get_light_at(
                 if abs_da < spot.spread {
                     let angular_intensity = 1.0 - (abs_da * inv_spread);
                     let dist_intensity = (1.0 - dist * inv_max_dist).max(0.0);
-                    let wave = 0.88 + 0.12 * (dist * 0.28 - time_elapsed * 14.0).sin();
-                    let intensity = angular_intensity * dist_intensity * wave;
+                    // Wave was 0.88 + 0.12 * sin(dist*0.28 - time*14.0) — one
+                    // sin per (cell, spotlight) per frame, 11.5M sin/sec on
+                    // the math-quant's measured load. The modulation is
+                    // ±12% of intensity, barely visible; drop the trig.
+                    // (Fix for CQ3.)
+                    let intensity = angular_intensity * dist_intensity * 0.88;
 
                     r += intensity * spot.color_r;
                     g += intensity * spot.color_g;
