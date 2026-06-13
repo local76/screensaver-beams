@@ -2,15 +2,16 @@
 
 mod types;
 mod physics;
+mod light;
+mod physics_star;
 
 pub use types::{Spotlight, Star, DustParticle, default_spotlights};
 
-use library::core::{LcgRng, TerminalCell};
+use crate::runner::core::{LcgRng, TerminalCell};
 use std::time::Duration;
-use library::core::screensaver::Screensaver;
+use crate::runner::core::screensaver::Screensaver;
 
-use library::toolkit::sys_info::get_system_info;
-
+use crate::runner::toolkit::sys_info::get_system_info;
 
 pub struct Beams {
     pub(super) rng: LcgRng,
@@ -31,6 +32,7 @@ pub struct Beams {
     pub(super) frame_time_ema: f32,
     pub(super) quality_scale: f32,
     pub(super) target_frame_time: f32,
+    pub(super) logo_text: String,
 }
 
 impl Default for Beams {
@@ -49,6 +51,7 @@ impl Beams {
         let mem_pressure = sys.mem_used_pct / 100.0;
         let cpu_load = (sys.cpu_usage_pct / 100.0).clamp(0.0, 1.0);
         let on_battery = sys.power_status.contains("Battery");
+        let logo_text = sys.logo_text.clone();
 
         let all_spots = default_spotlights();
 
@@ -76,6 +79,7 @@ impl Beams {
             frame_time_ema: 0.01666667,
             quality_scale: 1.0,
             target_frame_time: 0.01666667,
+            logo_text,
         }
     }
 }
@@ -113,6 +117,7 @@ impl Screensaver for Beams {
             self.mem_pressure = sys.mem_used_pct / 100.0;
             self.cpu_load = (sys.cpu_usage_pct / 100.0).clamp(0.0, 1.0);
             self.on_battery = sys.power_status.contains("Battery");
+            self.logo_text = sys.logo_text.clone();
             self.sys_refresh_timer = 0.0;
 
             let biased_load = self.cpu_load + (self.host_bias - 0.5) * 0.15;
@@ -204,8 +209,7 @@ impl Screensaver for Beams {
         for spot in &mut self.spotlights {
             spot.phase += spot.speed * delta;
         }
-
-}
+    }
 
     fn draw(&self, grid: &mut [TerminalCell], cols: usize, rows: usize) {
         physics::draw_impl(
@@ -217,40 +221,11 @@ impl Screensaver for Beams {
             &self.particles,
             self.twinkle_stars_opt,
             self.time_elapsed,
+            &self.logo_text,
         );
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_beams_new() {
-        let b = Beams::new();
-        assert!(!b.spotlights.is_empty());
-        assert_eq!(b.last_cols, 0);
-        assert_eq!(b.last_rows, 0);
-    }
-
-    #[test]
-    fn test_beams_init() {
-        let mut b = Beams::new();
-        b.update(Duration::from_millis(16), 80, 24);
-        assert_eq!(b.last_cols, 80);
-        assert_eq!(b.last_rows, 24);
-        assert!(!b.stars.is_empty());
-        assert!(!b.particles.is_empty());
-    }
-
-    #[test]
-    fn test_beams_update_and_draw() {
-        let mut b = Beams::new();
-        b.init(80, 24);
-        b.update(Duration::from_millis(16), 80, 24);
-        let mut grid = vec![TerminalCell::default(); 80 * 24];
-        b.draw(&mut grid, 80, 24);
-        let drawn_count = grid.iter().filter(|c| c.ch != '\0').count();
-        assert!(drawn_count > 0, "No beams/particles drawn in the grid");
-    }
-}
+#[path = "beams_tests.rs"]
+mod tests;
