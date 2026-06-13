@@ -30,3 +30,32 @@ lto = true               # Enable Link Time Optimization
 codegen-units = 1        # Reduce codegen units to maximize size reduction
 panic = "abort"          # Remove panic unwinding code
 strip = true             # Strip symbols and debuginfo
+
+[package.metadata.deb]
+name = "scene-beams"
+maintainer = "Screensavers Developer <dev@local76.org>"
+extended-description = "Screensaver effect (beams) part of the screensavers collection."
+depends = "libc6, xterm"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/beams", "usr/libexec/local76/screensavers/beams", "755"],
+    ["assets/local76-beams.desktop", "usr/share/applications/local76-beams.desktop", "644"],
+    ["assets/local76-beams.xml", "usr/share/xscreensaver/config/local76-beams.xml", "644"],
+    ["assets/local76-beams.png", "usr/share/pixmaps/local76-beams.png", "644"]
+]
+
+[package.metadata.generate-rpm]
+name = "scene-beams"
+version = "2026.6.10-1"
+release = "1"
+arch = "x86_64"
+summary = "beams - retro terminal screensaver effect"
+description = "Screensaver effect (beams) part of the screensavers collection."
+license = "MIT"
+assets = [
+    { source = "target/release/beams", dest = "/usr/libexec/local76/screensavers/beams", mode = "755" },
+    { source = "assets/local76-beams.desktop", dest = "/usr/share/applications/local76-beams.desktop", mode = "644" },
+    { source = "assets/local76-beams.xml", dest = "/usr/share/xscreensaver/config/local76-beams.xml", mode = "644" },
+    { source = "assets/local76-beams.png", dest = "/usr/share/pixmaps/local76-beams.png", mode = "644" }
+]
